@@ -2,6 +2,9 @@ package br.com.PetRepete.cadastros;
 
 import br.com.PetRepete.conexao.Conexao;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Scanner;
@@ -9,6 +12,8 @@ import java.util.Scanner;
 public class Casas {
 
     private String nome;
+    private boolean senhaConfirmada;
+    private String senha;
     private String email;
     private String numeroTelefone;
     private String cep, rua, numeroEndereco, complemento;
@@ -19,6 +24,21 @@ public class Casas {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getSenha() {
+        return senha;
+    }
+    public void confirmarSenha() {
+        this.senhaConfirmada = true;
+    }
+
+    public boolean isSenhaConfirmada() {
+        return senhaConfirmada;
+    }
+    public void setSenha(String senha) {
+        this.senha = senha;
+        senhaConfirmada = false;
     }
 
     public String getNumeroTelefone() {
@@ -84,6 +104,22 @@ public class Casas {
         System.out.print("Email: ");
         casa.setEmail(sc.nextLine());
 
+        do {
+            System.out.print("Senha: ");
+            casa.setSenha(sc.nextLine());
+
+            System.out.print("Confirme sua senha: ");
+            String senha2 = sc.nextLine();
+
+            if (!senha2.equals(casa.getSenha())) {
+                System.out.println("As senhas não coincidem, tente novamente");
+            } else {
+                casa.confirmarSenha();
+            }
+
+        } while (!casa.isSenhaConfirmada());
+
+        System.out.println("Senha confirmada com sucesso!");
         System.out.print("Número de Telefone: ");
         casa.setNumeroTelefone(sc.nextLine());
 
@@ -108,22 +144,31 @@ public class Casas {
     }
 
     public static void inserirCasasBanco(Casas casas) throws SQLException {
-        String sql = "INSERT INTO Casas (nome, numeroTelefone, email, cep, rua, numeroEndereco, complemento) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Casas (nome, email, senha, numeroTelefone, cep, rua, numeroEndereco, complemento) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement preparedStatement = Conexao.prepareStatement(sql)) {
             preparedStatement.setString(1, casas.getNome());
-            preparedStatement.setString(2, casas.getNumeroTelefone());
-            preparedStatement.setString(3, casas.getEmail());
-            preparedStatement.setString(4, casas.getCep());
-            preparedStatement.setString(5, casas.getRua());
-            preparedStatement.setString(6, casas.getNumeroEndereco());
-            preparedStatement.setString(7, casas.getComplemento());
+            preparedStatement.setString(4, casas.getNumeroTelefone());
+            preparedStatement.setString(3, encriptarSenha(casas.getSenha()));
+            preparedStatement.setString(2, casas.getEmail());
+            preparedStatement.setString(5, casas.getCep());
+            preparedStatement.setString(6, casas.getRua());
+            preparedStatement.setString(7, casas.getNumeroEndereco());
+            preparedStatement.setString(8, casas.getComplemento());
 
             preparedStatement.executeUpdate();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
     }
-
+    public static String encriptarSenha(String senha) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("MD5");
+        md.update(senha.getBytes());
+        byte[] digest = md.digest();
+        String senhaEncriptada = new BigInteger(1, digest).toString(16);
+        return senhaEncriptada;
+    }
     @Override
     public String toString() {
         return "Casas{" +

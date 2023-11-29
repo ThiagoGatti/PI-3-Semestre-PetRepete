@@ -1,18 +1,31 @@
 package br.com.PetRepete.cadastros;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLOutput;
 import java.util.Scanner;
 import br.com.PetRepete.conexao.Conexao;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+
 import java.sql.PreparedStatement;
 
 public class Usuarios {
 
     private String nome;
+    private String senha;
+    private boolean senhaConfirmada;
     private String numeroTelefone;
     private String email;
     private String cep, rua, numeroEndereco, complemento;
 
-
+    public boolean isSenhaConfirmada() {
+        return senhaConfirmada;
+    }
     public String getNome() {
         return nome;
     }
@@ -38,6 +51,16 @@ public class Usuarios {
     }
 
 
+    public String getSenha() {
+        return senha;
+    }
+    public void confirmarSenha() {
+        this.senhaConfirmada = true;
+    }
+    public void setSenha(String senha) {
+        this.senha = senha;
+        this.senhaConfirmada = false;
+    }
 
 
     public String getCep() {
@@ -81,6 +104,24 @@ public class Usuarios {
         System.out.print("Email: ");
         usuario.setEmail(sc.nextLine());
 
+        do {
+            System.out.print("Senha: ");
+            usuario.setSenha(sc.nextLine());
+
+            System.out.print("Confirme sua senha: ");
+            String senha2 = sc.nextLine();
+
+            if (!senha2.equals(usuario.getSenha())) {
+                System.out.println("As senhas não coincidem, tente novamente");
+            } else {
+                usuario.confirmarSenha();
+            }
+
+        } while (!usuario.isSenhaConfirmada());
+
+        System.out.println("Senha confirmada com sucesso!");
+
+
         System.out.print("CEP: ");
         usuario.setCep(sc.nextLine());
 
@@ -101,22 +142,74 @@ public class Usuarios {
         System.out.println("Cadastro Realizado");
     }
 
-    public static void inserirUsuarioBanco(Usuarios usuario) throws SQLException {
-        String sql = "INSERT INTO Usuarios (nome, numeroTelefone, email, cep, rua, numeroEndereco, complemento) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    public static void inserirUsuarioBanco(Usuarios usuario) throws SQLException, NoSuchAlgorithmException {
+        String sql = "INSERT INTO Usuarios (nome, numeroTelefone, senha, email, cep, rua, numeroEndereco, complemento) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement preparedStatement = Conexao.prepareStatement(sql)) {
             preparedStatement.setString(1, usuario.getNome());
             preparedStatement.setString(2, usuario.getNumeroTelefone());
-            preparedStatement.setString(3, usuario.getEmail());
-            preparedStatement.setString(4, usuario.getCep());
-            preparedStatement.setString(5, usuario.getRua());
-            preparedStatement.setString(6, usuario.getNumeroEndereco());
-            preparedStatement.setString(7, usuario.getComplemento());
+            preparedStatement.setString(3, encriptarSenha(usuario.getSenha()));
+            preparedStatement.setString(4, usuario.getEmail());
+            preparedStatement.setString(5, usuario.getCep());
+            preparedStatement.setString(6, usuario.getRua());
+            preparedStatement.setString(7, usuario.getNumeroEndereco());
+            preparedStatement.setString(8, usuario.getComplemento());
 
             preparedStatement.executeUpdate();
         }
     }
+    public static String encriptarSenha(String senha) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(senha.getBytes());
+            byte[] digest = md.digest();
+            return String.format("%064x", new BigInteger(1, digest));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Algoritmo de hash não disponível", e);
+        }
+    }
+
+
+    private static boolean verificarSenha(String senhaFornecida, String senhaArmazenada) throws NoSuchAlgorithmException {
+        String senhaFornecidaEncriptada = encriptarSenha(senhaFornecida);
+        MessageDigest md = MessageDigest.getInstance(senhaArmazenada);
+        md.update(senhaFornecida.getBytes());
+        byte[] digest = md.digest();
+        String senhaArmazenadaEncriptada = new BigInteger(1, digest).toString(16);
+        return senhaFornecidaEncriptada.equals(senhaArmazenadaEncriptada);
+    }
+
+    public static Usuarios buscarUsuarioPorEmailESenha(String email, String senha) throws SQLException, NoSuchAlgorithmException {
+        String sql = "SELECT * FROM Usuarios WHERE email = ?";
+
+        try (PreparedStatement preparedStatement = Conexao.prepareStatement(sql)) {
+            preparedStatement.setString(1, email);
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    String senhaArmazenada = resultSet.getString("senha");
+                    if (verificarSenha(senha, senhaArmazenada)) {
+                        Usuarios usuario = new Usuarios();
+                        usuario.setNome(resultSet.getString("nome"));
+                        usuario.setNumeroTelefone(resultSet.getString("numeroTelefone"));
+                        usuario.setEmail(resultSet.getString("email"));
+                        usuario.setCep(resultSet.getString("cep"));
+                        usuario.setRua(resultSet.getString("rua"));
+                        usuario.setNumeroEndereco(resultSet.getString("numeroEndereco"));
+                        usuario.setComplemento(resultSet.getString("complemento"));
+                        return usuario;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+
+
+
 
     @Override
     public String toString() {
