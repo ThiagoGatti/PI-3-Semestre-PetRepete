@@ -161,7 +161,7 @@ public class Usuarios {
     }
     public static String encriptarSenha(String senha) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            MessageDigest md = MessageDigest.getInstance("SHA-512");
             md.update(senha.getBytes());
             byte[] digest = md.digest();
             return String.format("%064x", new BigInteger(1, digest));
@@ -170,36 +170,42 @@ public class Usuarios {
         }
     }
 
+    private static final MessageDigest md;
+
+    static {
+        try {
+            md = MessageDigest.getInstance("SHA-512");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private static boolean verificarSenha(String senhaFornecida, String senhaArmazenada) throws NoSuchAlgorithmException {
         String senhaFornecidaEncriptada = encriptarSenha(senhaFornecida);
-        MessageDigest md = MessageDigest.getInstance(senhaArmazenada);
-        md.update(senhaFornecida.getBytes());
+        md.update(senhaFornecidaEncriptada.getBytes());
         byte[] digest = md.digest();
         String senhaArmazenadaEncriptada = new BigInteger(1, digest).toString(16);
         return senhaFornecidaEncriptada.equals(senhaArmazenadaEncriptada);
     }
 
     public static Usuarios buscarUsuarioPorEmailESenha(String email, String senha) throws SQLException, NoSuchAlgorithmException {
-        String sql = "SELECT * FROM Usuarios WHERE email = ?";
+        String sql = "SELECT * FROM Usuarios WHERE email = ? AND senha = ?";
 
         try (PreparedStatement preparedStatement = Conexao.prepareStatement(sql)) {
             preparedStatement.setString(1, email);
+            preparedStatement.setString(2, encriptarSenha(senha));
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
-                    String senhaArmazenada = resultSet.getString("senha");
-                    if (verificarSenha(senha, senhaArmazenada)) {
-                        Usuarios usuario = new Usuarios();
-                        usuario.setNome(resultSet.getString("nome"));
-                        usuario.setNumeroTelefone(resultSet.getString("numeroTelefone"));
-                        usuario.setEmail(resultSet.getString("email"));
-                        usuario.setCep(resultSet.getString("cep"));
-                        usuario.setRua(resultSet.getString("rua"));
-                        usuario.setNumeroEndereco(resultSet.getString("numeroEndereco"));
-                        usuario.setComplemento(resultSet.getString("complemento"));
-                        return usuario;
-                    }
+                    Usuarios usuario = new Usuarios();
+                    usuario.setNome(resultSet.getString("nome"));
+                    usuario.setNumeroTelefone(resultSet.getString("numeroTelefone"));
+                    usuario.setEmail(resultSet.getString("email"));
+                    usuario.setCep(resultSet.getString("cep"));
+                    usuario.setRua(resultSet.getString("rua"));
+                    usuario.setNumeroEndereco(resultSet.getString("numeroEndereco"));
+                    usuario.setComplemento(resultSet.getString("complemento"));
+                    return usuario;
                 }
             }
         }

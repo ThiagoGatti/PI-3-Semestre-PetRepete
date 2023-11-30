@@ -6,6 +6,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Scanner;
 
@@ -158,16 +159,60 @@ public class Casas {
             preparedStatement.setString(8, casas.getComplemento());
 
             preparedStatement.executeUpdate();
+        }
+    }
+
+    public static Casas buscarCasaPorEmailESenha(String email, String senha) throws SQLException, NoSuchAlgorithmException {
+        String sql = "SELECT * FROM Casas WHERE email = ? AND senha = ?";
+
+        try (PreparedStatement preparedStatement = Conexao.prepareStatement(sql)) {
+            preparedStatement.setString(1, email);
+            preparedStatement.setString(2, encriptarSenha(senha));
+
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    Casas casas = new Casas();
+                    casas.setNome(resultSet.getString("nome"));
+                    casas.setNumeroTelefone(resultSet.getString("numeroTelefone"));
+                    casas.setEmail(resultSet.getString("email"));
+                    casas.setCep(resultSet.getString("cep"));
+                    casas.setRua(resultSet.getString("rua"));
+                    casas.setNumeroEndereco(resultSet.getString("numeroEndereco"));
+                    casas.setComplemento(resultSet.getString("complemento"));
+                    return casas;
+                }
+            }
+        }
+
+        return null;
+    }
+    public static String encriptarSenha(String senha) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-512");
+            md.update(senha.getBytes());
+            byte[] digest = md.digest();
+            return String.format("%064x", new BigInteger(1, digest));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Algoritmo de hash não disponível", e);
+        }
+    }
+
+    private static final MessageDigest md;
+
+    static {
+        try {
+            md = MessageDigest.getInstance("SHA-512");
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
     }
-    public static String encriptarSenha(String senha) throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("MD5");
-        md.update(senha.getBytes());
+
+    private static boolean verificarSenha(String senhaFornecida, String senhaArmazenada) throws NoSuchAlgorithmException {
+        String senhaFornecidaEncriptada = encriptarSenha(senhaFornecida);
+        md.update(senhaFornecidaEncriptada.getBytes());
         byte[] digest = md.digest();
-        String senhaEncriptada = new BigInteger(1, digest).toString(16);
-        return senhaEncriptada;
+        String senhaArmazenadaEncriptada = new BigInteger(1, digest).toString(16);
+        return senhaFornecidaEncriptada.equals(senhaArmazenadaEncriptada);
     }
     @Override
     public String toString() {

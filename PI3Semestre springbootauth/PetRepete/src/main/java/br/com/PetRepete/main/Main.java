@@ -1,7 +1,6 @@
 package br.com.PetRepete.main;
 
 import java.io.IOException;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -35,8 +34,10 @@ public class Main {
             System.out.println("1 - Cadastro de Usuario");
             System.out.println("2 - Cadastro de Casas");
             System.out.println("3 - Cadastro de Animais");
-            System.out.println("4 - Realizar Login");
-            System.out.println("5 - Sair");
+            System.out.println("4 - Realizar Login de Usuario");
+            System.out.println("5 - Realizar Login de Casa de Adoção");
+
+            System.out.println("6 - Sair");
             System.out.print("Escolha a opção desejada: ");
 
             try {
@@ -108,10 +109,25 @@ public class Main {
                     } catch (SQLException | NoSuchAlgorithmException e) {
                         System.out.println("Erro ao realizar login: " + e.getMessage());
                     }
-
-
                     break;
                 case 5:
+                    System.out.println("Realizar Login");
+                    System.out.print("Digite o e-mail: ");
+                    String emailLoginCasa = sc.nextLine();
+                    System.out.print("Digite a senha: ");
+                    String senhaLoginCasa = sc.nextLine();
+
+                    try {
+                        Casas casaLogada = Casas.buscarCasaPorEmailESenha(emailLoginCasa, senhaLoginCasa);
+                        if (casaLogada != null) {
+                            System.out.println("Login bem-sucedido. Bem vinda, Casa: " + casaLogada.getNome() + "!");
+                        } else {
+                            System.out.println("Login falhou. Email ou senha incorretos.");
+                        }
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                case 6:
                     System.out.println("Saindo do programa...");
                     System.exit(0);
                     break;
